@@ -7,8 +7,11 @@
   const flashEl = document.getElementById('flash');
   const whoEl = document.getElementById('who');
 
-  let sb = null, user = null, profile = null;
-  const state = { otp: null, historyFor: null, tankers: {} };
+  let sb = null, user = null, profile = null, rtChannel = null;
+  const OTP_KEY = 'mwave_otp';
+  const loadOtp = () => { try { return JSON.parse(sessionStorage.getItem(OTP_KEY)); } catch { return null; } };
+  const setOtp = (v) => { state.otp = v; if (v) sessionStorage.setItem(OTP_KEY, JSON.stringify(v)); else sessionStorage.removeItem(OTP_KEY); };
+  const state = { otp: loadOtp(), historyFor: null, tankers: {} };
   let flashTimer = null;
 
   // ---------- small helpers ----------
@@ -119,8 +122,9 @@
   }
 
   async function logout() {
+    if (rtChannel) { sb.removeChannel(rtChannel); rtChannel = null; }
     await sb.auth.signOut();
-    user = profile = null; state.otp = null; state.historyFor = null;
+    user = profile = null; setOtp(null); state.historyFor = null;
     flashEl.innerHTML = '';
     showLogin();
   }
@@ -140,7 +144,25 @@
     whoEl.innerHTML = `<span>${esc(profile.full_name)}</span><span class="role">${esc(profile.role)}</span>
       <button class="ghost small" id="lo" style="color:#fff;border-color:#ffffff66">Log out</button>`;
     document.getElementById('lo').onclick = logout;
+    subscribeRealtime();
     await refresh();
+  }
+
+  function subscribeRealtime() {
+    if (rtChannel) sb.removeChannel(rtChannel);
+    rtChannel = sb.channel('mwave-live')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'order_status_history' }, (p) => {
+        const r = p.new;
+        if (user && r.changed_by === user.id) return;
+        flash(`Order #${r.order_id} is now ${r.new_status}.`, 'ok');
+        refresh();
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'fraud_flags' }, (p) => {
+        const f = p.new;
+        flash(`New fraud flag on order #${f.order_id}: ${f.flag_type}`, 'err');
+        refresh();
+      })
+      .subscribe();
   }
 
   async function refresh() {
@@ -158,7 +180,8 @@
     state.hh = ov;
     if (state.otp) {
       const o = orders.find((x) => x.order_id === state.otp.order);
-      if (!o || o.status === 'VERIFIED' || (o.otp_attempts || 0) >= 3) state.otp = null;
+      const expired = o && o.otp_expires_at && new Date(o.otp_expires_at) <= new Date();
+      if (!o || !['DISPATCHED', 'DELIVERED'].includes(o.status) || (o.otp_attempts || 0) >= 3 || expired) setOtp(null);
     }
     const pct = Math.min(100, Math.round((ov.used / ov.quota) * 100));
     const left = Math.max(0, ov.quota - ov.used);
@@ -384,11 +407,11 @@
       }
       case 'cancel': await run(() => A.cancelOrder(sb, id), () => `Order #${id} cancelled and your quota was returned.`); break;
       case 'otp': {
-        try { state.otp = { order: id, code: await A.getOtp(sb, id) }; flashEl.innerHTML = ''; }
+        try { setOtp({ order: id, code: await A.getOtp(sb, id) }); flashEl.innerHTML = ''; }
         catch (err) { flash(err.message, 'err'); }
         await refresh(); break;
       }
-      case 'hideotp': state.otp = null; await refresh(); break;
+      case 'hideotp': setOtp(null); await refresh(); break;
       case 'pay': {
         const amt = parseFloat(val('pay').value);
         if (!(amt >= 0)) { flash('Enter the exact amount paid.', 'err'); b.disabled = false; return; }
