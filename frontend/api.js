@@ -5,6 +5,7 @@
 
   // orders has no "select *": the otp_hash column is blocked by the database on purpose.
   const ORDER_COLS = 'order_id,household_id,tanker_id,driver_id,station_id,volume_liters,price,status,' +
+    'amount_paid,payment_status,' +
     'otp_attempts,otp_expires_at,otp_verified,delivered_liters,household_rating,' +
     'booked_at,filled_at,dispatched_at,delivered_at,verified_at';
 
@@ -54,6 +55,7 @@
     placeOrder: (sb, householdId, liters) => rpc(sb, 'place_order', { p_household: householdId, p_volume: liters }),
     cancelOrder: (sb, orderId) => rpc(sb, 'cancel_order', { p_order: orderId }),
     getOtp: (sb, orderId) => rpc(sb, 'get_my_otp', { p_order: orderId }),
+    confirmPayment: (sb, orderId, amountPaid) => rpc(sb, 'confirm_payment', { p_order: orderId, p_amount_paid: amountPaid }),
     rateOrder: (sb, orderId, rating) => rpc(sb, 'rate_order', { p_order: orderId, p_rating: rating }),
 
     // ---------- driver ----------

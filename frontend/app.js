@@ -18,6 +18,11 @@
   const money = (n) => (n == null ? '-' : Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   const when = (t) => (t ? new Date(t).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : '-');
   const badge = (s) => `<span class="badge s-${esc(s)}">${esc(s)}</span>`;
+  const payBadge = (o) => o.payment_status === 'PAID'
+    ? `<span class="ok">Paid (${money(o.amount_paid)})</span>`
+    : o.payment_status === 'DISPUTED'
+      ? `<span class="bad">Disputed (${money(o.amount_paid)})</span>`
+      : '<span class="muted">Unpaid</span>';
   const card = (label, value, sub) =>
     `<div class="card"><div class="label">${esc(label)}</div><div class="value">${value}</div>${sub ? `<div class="sub">${sub}</div>` : ''}</div>`;
   const table = (head, rows, empty) => rows.length
@@ -176,13 +181,17 @@
           act += `<button class="small" data-act="otp" data-order="${o.order_id}">Get OTP</button>`;
         }
       }
+      if ((o.status === 'DELIVERED' || o.status === 'VERIFIED') && o.payment_status === 'UNPAID') {
+        act += `<input id="pay${o.order_id}" type="number" min="0" step="0.01" value="${o.price == null ? '' : o.price}" style="width:95px" aria-label="Amount paid">
+                <button class="small" data-act="pay" data-order="${o.order_id}">Confirm paid</button>`;
+      }
       if (o.status === 'VERIFIED' && o.household_rating == null) {
         act += `<select id="r${o.order_id}" aria-label="Rating">${[5, 4, 3, 2, 1].map((n) => `<option>${n}</option>`).join('')}</select>
                 <button class="small" data-act="rate" data-order="${o.order_id}">Rate</button>`;
       }
       if (o.household_rating != null) act += `<span class="muted">Rated ${o.household_rating}/5</span>`;
       act += `<button class="small ghost" data-act="history" data-order="${o.order_id}">History</button>`;
-      return `<tr><td>#${o.order_id}</td><td>${num(o.volume_liters)} L</td><td>${money(o.price)}</td><td>${badge(o.status)}</td>
+      return `<tr><td>#${o.order_id}</td><td>${num(o.volume_liters)} L</td><td>${money(o.price)}</td><td>${payBadge(o)}</td><td>${badge(o.status)}</td>
         <td>${when(o.booked_at)}</td><td class="actions"><div class="row">${act}</div></td></tr>`;
     });
 
@@ -205,7 +214,7 @@
         <div class="otpcode">${esc(state.otp.code)}</div><button class="small ghost" data-act="hideotp">Hide</button></div>` : ''}
 
       <h2>My orders</h2>
-      ${table(['Order', 'Volume', 'Price', 'Status', 'Booked', 'Actions'], rows, 'You have no orders yet.')}
+      ${table(['Order', 'Volume', 'Price', 'Payment', 'Status', 'Booked', 'Actions'], rows, 'You have no orders yet.')}
       <div id="history"></div>`;
     if (state.historyFor) await showHistory(state.historyFor);
   }
@@ -370,6 +379,15 @@
         await refresh(); break;
       }
       case 'hideotp': state.otp = null; await refresh(); break;
+      case 'pay': {
+        const amt = parseFloat(val('pay').value);
+        if (!(amt >= 0)) { flash('Enter the exact amount paid.', 'err'); b.disabled = false; return; }
+        await run(() => A.confirmPayment(sb, id, amt), (st) =>
+          st === 'DISPUTED'
+            ? `Order #${id} payment disputed (exceeds official price). Flagged for regulator.`
+            : `Order #${id} payment confirmed.`);
+        break;
+      }
       case 'rate': await run(() => A.rateOrder(sb, id, int(val('r'))), () => 'Thanks for rating.'); break;
       case 'history': try { await showHistory(id); } catch (err) { flash(err.message, 'err'); } b.disabled = false; break;
       case 'deliver': {
