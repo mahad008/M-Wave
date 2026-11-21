@@ -60,4 +60,8 @@ td.actions .row{flex-wrap:nowrap}
 .loginbox label{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}
 .timeline{margin:0;padding-left:18px}
 .timeline li{margin:3px 0}
+.tabs{display:flex;gap:8px;flex-wrap:wrap;margin:4px 0 18px;border-bottom:1px solid var(--line);padding-bottom:10px}
+.tab{background:transparent;color:var(--muted);border:1px solid var(--line)}
+.tab:hover{background:var(--line);color:var(--ink)}
+.tab.active{background:var(--brand);color:#fff;border-color:var(--brand)}
 @media (max-width:600px){ .card .value{font-size:19px} .otpcode{font-size:30px;letter-spacing:6px} }
