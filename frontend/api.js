@@ -149,13 +149,24 @@
       return unwrap(await sb.from('fraud_flags').select('flag_id,order_id,flag_type,details,created_at,resolved')
         .order('flag_id', { ascending: false }).limit(30));
     },
+    async regBadgeCounts(sb) {
+      const [fl, hh] = await Promise.all([
+        sb.from('fraud_flags').select('flag_id', { count: 'exact', head: true }).eq('resolved', false),
+        sb.from('households').select('household_id', { count: 'exact', head: true }).eq('is_active', false)
+      ]);
+      if (fl.error) throw new Error(fl.error.message);
+      if (hh.error) throw new Error(hh.error.message);
+      return { open: fl.count || 0, pendingHh: hh.count || 0 };
+    },
     async orderCounts(sb) {
+      const statuses = ['WAITING', 'BOOKED', 'FILLED', 'DISPATCHED', 'DELIVERED', 'VERIFIED', 'CANCELLED'];
+      const res = await Promise.all(statuses.map((s) =>
+        sb.from('orders').select('order_id', { count: 'exact', head: true }).eq('status', s)));
       const out = {};
-      for (const s of ['WAITING', 'BOOKED', 'FILLED', 'DISPATCHED', 'DELIVERED', 'VERIFIED', 'CANCELLED']) {
-        const r = await sb.from('orders').select('order_id', { count: 'exact', head: true }).eq('status', s);
-        if (r.error) throw new Error(r.error.message);
-        out[s] = r.count || 0;
-      }
+      statuses.forEach((s, i) => {
+        if (res[i].error) throw new Error(res[i].error.message);
+        out[s] = res[i].count || 0;
+      });
       return out;
     }
   };

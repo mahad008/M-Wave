@@ -344,38 +344,14 @@
 
   // ---------- regulator ----------
   async function viewRegulator() {
-    const [counts, flags, scores, orders, dem, thr, turn, stations, drivers, tankers, areas, cats, rates, households, profiles] = await Promise.all([
-      A.orderCounts(sb), A.fraudFlags(sb), A.driverScores(sb), A.listOrders(sb, 30),
-      A.reportDemand(sb), A.reportThroughput(sb), A.reportTurnaround(sb),
-      A.getStations(sb), A.getDrivers(sb), A.getTankers(sb),
-      A.getAreas(sb), A.getCategories(sb), A.getPriceRates(sb), A.getHouseholds(sb), A.getProfiles(sb)]);
-
-    const open = flags.filter((f) => !f.resolved).length;
-    const pendingHh = households.filter((h) => !h.is_active).length;
-    const driverMap = Object.fromEntries(drivers.map((d) => [d.driver_id, d]));
-    const areaMap = Object.fromEntries(areas.map((a) => [a.area_id, a]));
-    const catMap = Object.fromEntries(cats.map((c) => [c.category_id, c]));
-    const profMap = Object.fromEntries(profiles.map((p) => [p.user_id, p]));
-
-    const tankerOpts = (sel) => `<option value="">Unassigned</option>` + tankers.map((t) =>
-      `<option value="${t.tanker_id}" ${t.tanker_id === sel ? 'selected' : ''}>#${t.tanker_id} ${esc(t.plate_no)} (${num(t.capacity_liters)} L)</option>`
-    ).join('');
-    const areaOpts = (sel) => areas.map((a) =>
-      `<option value="${a.area_id}" ${a.area_id === sel ? 'selected' : ''}>${esc(a.name)}</option>`
-    ).join('');
-    const catOpts = (sel) => cats.map((c) =>
-      `<option value="${c.category_id}" ${c.category_id === sel ? 'selected' : ''}>${esc(c.name)}</option>`
-    ).join('');
-
     const tab = state.regTab || 'overview';
-    const tabsHtml = `<div class="tabs">
-      <button class="tab ${tab === 'overview' ? 'active' : ''}" data-act="reg-tab" data-tab="overview">Overview &amp; Orders${open ? ` (${open})` : ''}</button>
-      <button class="tab ${tab === 'people' ? 'active' : ''}" data-act="reg-tab" data-tab="people">People &amp; Fleet${pendingHh ? ` (${pendingHh} pending)` : ''}</button>
-      <button class="tab ${tab === 'setup' ? 'active' : ''}" data-act="reg-tab" data-tab="setup">Setup &amp; Rates</button>
-    </div>`;
+    let body = '', open = 0, pendingHh = 0;
 
-    let body = '';
     if (tab === 'overview') {
+      const [badges, counts, flags, orders, dem, thr, turn] = await Promise.all([
+        A.regBadgeCounts(sb), A.orderCounts(sb), A.fraudFlags(sb), A.listOrders(sb, 30),
+        A.reportDemand(sb), A.reportThroughput(sb), A.reportTurnaround(sb)]);
+      ({ open, pendingHh } = badges);
       body = `
         <h2>City overview</h2>
         <div class="grid">
@@ -409,6 +385,19 @@
         ${table(['Driver', 'Verified deliveries', 'Avg. booking to verified'],
           turn.map((r) => `<tr><td>${esc(r.driver)}</td><td>${r.verified_deliveries}</td><td>${esc(r.avg_turnaround || '-')}</td></tr>`))}`;
     } else if (tab === 'people') {
+      const [badges, scores, drivers, tankers, areas, cats, households, profiles] = await Promise.all([
+        A.regBadgeCounts(sb), A.driverScores(sb), A.getDrivers(sb), A.getTankers(sb),
+        A.getAreas(sb), A.getCategories(sb), A.getHouseholds(sb), A.getProfiles(sb)]);
+      ({ open, pendingHh } = badges);
+      const driverMap = Object.fromEntries(drivers.map((d) => [d.driver_id, d]));
+      const areaMap = Object.fromEntries(areas.map((a) => [a.area_id, a]));
+      const profMap = Object.fromEntries(profiles.map((p) => [p.user_id, p]));
+      const tankerOpts = (sel) => `<option value="">Unassigned</option>` + tankers.map((t) =>
+        `<option value="${t.tanker_id}" ${t.tanker_id === sel ? 'selected' : ''}>#${t.tanker_id} ${esc(t.plate_no)} (${num(t.capacity_liters)} L)</option>`
+      ).join('');
+      const catOpts = (sel) => cats.map((c) =>
+        `<option value="${c.category_id}" ${c.category_id === sel ? 'selected' : ''}>${esc(c.name)}</option>`
+      ).join('');
       body = `
         <h2>Households (approvals &amp; categories)</h2>
         ${table(['Household', 'Owner / CNIC', 'Area &amp; Address', 'Bill No.', 'Category', 'Status', 'Action'],
@@ -470,6 +459,17 @@
               </div></td></tr>`;
           }))}`;
     } else {
+      const [badges, stations, areas, cats, rates, profiles] = await Promise.all([
+        A.regBadgeCounts(sb), A.getStations(sb), A.getAreas(sb), A.getCategories(sb), A.getPriceRates(sb), A.getProfiles(sb)]);
+      ({ open, pendingHh } = badges);
+      const catMap = Object.fromEntries(cats.map((c) => [c.category_id, c]));
+      const profMap = Object.fromEntries(profiles.map((p) => [p.user_id, p]));
+      const areaOpts = (sel) => areas.map((a) =>
+        `<option value="${a.area_id}" ${a.area_id === sel ? 'selected' : ''}>${esc(a.name)}</option>`
+      ).join('');
+      const catOpts = (sel) => cats.map((c) =>
+        `<option value="${c.category_id}" ${c.category_id === sel ? 'selected' : ''}>${esc(c.name)}</option>`
+      ).join('');
       const nowMs = Date.now();
       const activeRateIds = new Set();
       for (const c of cats) {
@@ -538,6 +538,11 @@
             </div></td></tr>`))}`;
     }
 
+    const tabsHtml = `<div class="tabs">
+      <button class="tab ${tab === 'overview' ? 'active' : ''}" data-act="reg-tab" data-tab="overview">Overview &amp; Orders${open ? ` (${open})` : ''}</button>
+      <button class="tab ${tab === 'people' ? 'active' : ''}" data-act="reg-tab" data-tab="people">People &amp; Fleet${pendingHh ? ` (${pendingHh} pending)` : ''}</button>
+      <button class="tab ${tab === 'setup' ? 'active' : ''}" data-act="reg-tab" data-tab="setup">Setup &amp; Rates</button>
+    </div>`;
     view.innerHTML = tabsHtml + body;
   }
 
@@ -549,6 +554,7 @@
     const val = (prefix) => document.getElementById(prefix + id);
     const int = (el) => (el && el.value !== '' ? parseInt(el.value, 10) : NaN);
     b.disabled = true;
+    try {
     switch (b.dataset.act) {
       case 'book': {
         const v = parseInt(document.getElementById('vol').value, 10);
@@ -604,6 +610,7 @@
         await run(() => A.adminResolveFraud(sb, Number(b.dataset.id)), () => 'Fraud flag resolved.');
         break;
       case 'breakdown':
+        if (!confirm(`Report breakdown for order #${id}? This marks the tanker BLOCKED and reassigns the order.`)) return;
         await run(() => A.reportBreakdown(sb, id), (r) =>
           r === 'REASSIGNED'
             ? `Order #${id} reassigned to another available tanker. Broken tanker marked BLOCKED.`
@@ -675,6 +682,7 @@
         break;
       }
       case 'block-tanker':
+        if (!confirm(`Retire tanker #${b.dataset.id}? It will be marked BLOCKED and removed from new assignments.`)) return;
         await run(() => A.adminBlockTanker(sb, Number(b.dataset.id)), () => 'Tanker retired (marked BLOCKED).');
         break;
       case 'add-area': {
@@ -731,7 +739,12 @@
         await run(() => A.adminSaveStation(sb, name, aid, sid), () => `Station #${sid} updated.`);
         break;
       }
-      default: b.disabled = false;
+      default: break;
+    }
+    } catch (err) {
+      flash(err.message || 'Something went wrong', 'err');
+    } finally {
+      b.disabled = false;
     }
   });
 
