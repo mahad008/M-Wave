@@ -236,10 +236,14 @@
 
     const rows = orders.map((o) => {
       let act = '<span class="muted">-</span>';
-      if (o.status === 'BOOKED' || o.status === 'FILLED') act = '<span class="muted">Waiting for the station</span>';
+      if (o.status === 'BOOKED' || o.status === 'FILLED') {
+        act = `<div class="row"><span class="muted">Waiting for station</span>
+          <button class="small danger" data-act="breakdown" data-order="${o.order_id}">Breakdown</button></div>`;
+      }
       if (o.status === 'DISPATCHED') {
         act = `<div class="row"><input id="d${o.order_id}" type="number" min="0" value="${o.volume_liters}" aria-label="Liters delivered">
-          <button class="small" data-act="deliver" data-order="${o.order_id}">Mark delivered</button></div>`;
+          <button class="small" data-act="deliver" data-order="${o.order_id}">Mark delivered</button>
+          <button class="small danger" data-act="breakdown" data-order="${o.order_id}">Breakdown</button></div>`;
       }
       if (o.status === 'DELIVERED') {
         act = (o.otp_attempts || 0) >= 3
@@ -351,10 +355,16 @@
       ${table(['Order', 'Type', 'Details', 'When', 'Action'],
         flags.map((f) => `<tr><td>#${f.order_id}</td><td><span class="bad">${esc(f.flag_type)}</span></td><td>${esc(f.details)}</td><td>${when(f.created_at)}</td>
           <td class="actions">${f.resolved ? '<span class="ok">Resolved</span>' : `<button class="small" data-act="resolve-flag" data-id="${f.flag_id}">Resolve</button>`}</td></tr>`), 'No fraud flags. All clear.')}
+      <h2>Tanker fleet</h2>
+      ${table(['Tanker', 'Capacity', 'Rate / 1000 L', 'Status', 'Action'],
+        tankers.map((t) => `<tr><td>#${t.tanker_id} ${esc(t.plate_no)}</td><td>${num(t.capacity_liters)} L</td><td>${money(t.price_per_1000l)}</td>
+          <td>${t.status === 'BLOCKED' ? '<span class="bad">BLOCKED</span>' : t.status === 'BUSY' ? '<span class="muted">BUSY</span>' : '<span class="ok">AVAILABLE</span>'}</td>
+          <td class="actions">${t.status === 'BLOCKED' ? `<button class="small" data-act="unblock-tanker" data-id="${t.tanker_id}">Mark repaired</button>` : '<span class="muted">-</span>'}</td></tr>`))}
       <h2>Latest orders</h2>
-      ${table(['Order', 'Household', 'Tanker', 'Driver', 'Volume', 'Price', 'Status', 'Booked'],
+      ${table(['Order', 'Household', 'Tanker', 'Driver', 'Volume', 'Price', 'Payment', 'Status', 'Booked', 'Action'],
         orders.map((o) => `<tr><td>#${o.order_id}</td><td>${o.household_id}</td><td>${o.tanker_id || '-'}</td><td>${o.driver_id || '-'}</td>
-          <td>${num(o.volume_liters)} L</td><td>${money(o.price)}</td><td>${badge(o.status)}</td><td>${when(o.booked_at)}</td></tr>`))}`;
+          <td>${num(o.volume_liters)} L</td><td>${money(o.price)}</td><td>${payBadge(o)}</td><td>${badge(o.status)}</td><td>${when(o.booked_at)}</td>
+          <td class="actions">${['BOOKED', 'FILLED', 'DISPATCHED'].includes(o.status) ? `<button class="small danger" data-act="breakdown" data-order="${o.order_id}">Reassign</button>` : '<span class="muted">-</span>'}</td></tr>`))}`;
   }
 
   // ---------- click handling (one listener for every button) ----------
@@ -419,8 +429,18 @@
       case 'resolve-flag':
         await run(() => A.adminResolveFraud(sb, Number(b.dataset.id)), () => 'Fraud flag resolved.');
         break;
+      case 'breakdown':
+        await run(() => A.reportBreakdown(sb, id), (r) =>
+          r === 'REASSIGNED'
+            ? `Order #${id} reassigned to another available tanker. Broken tanker marked BLOCKED.`
+            : `Broken tanker marked BLOCKED. Order #${id} returned to front of queue.`);
+        break;
       case 'unblock-driver':
         await run(() => A.adminUnblockDriver(sb, Number(b.dataset.id)), () => 'Driver unblocked and points reset.');
+        break;
+      case 'unblock-tanker':
+        await run(() => A.adminUnblockTanker(sb, Number(b.dataset.id)), (n) =>
+          `Tanker marked AVAILABLE.${n ? ` ${n} waiting order(s) auto-assigned.` : ''}`);
         break;
       case 'assign-tanker': {
         const driverId = Number(b.dataset.id);

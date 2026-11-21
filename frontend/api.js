@@ -30,7 +30,7 @@
         .eq('order_id', orderId).order('history_id', { ascending: true }));
     },
     async getTankers(sb) {
-      return unwrap(await sb.from('tankers').select('tanker_id,plate_no,capacity_liters,price_per_1000l'));
+      return unwrap(await sb.from('tankers').select('tanker_id,plate_no,capacity_liters,price_per_1000l,status').order('tanker_id'));
     },
 
     // ---------- household ----------
@@ -71,6 +71,7 @@
       return unwrap(await sb.from('households').select('household_id,address').in('household_id', ids));
     },
     markDelivered: (sb, orderId, liters) => rpc(sb, 'mark_delivered', { p_order: orderId, p_delivered_liters: liters }),
+    reportBreakdown: (sb, orderId) => rpc(sb, 'report_breakdown', { p_order: orderId }),
     verifyOtp: (sb, orderId, otp) => rpc(sb, 'verify_otp', { p_order: orderId, p_otp: otp }),
 
     // ---------- station operator ----------
@@ -107,6 +108,8 @@
       rpc(sb, 'admin_resolve_fraud', { p_flag_id: flagId }),
     adminUnblockDriver: (sb, driverId) =>
       rpc(sb, 'admin_unblock_driver', { p_driver_id: driverId }),
+    adminUnblockTanker: (sb, tankerId) =>
+      rpc(sb, 'admin_unblock_tanker', { p_tanker_id: tankerId }),
     async fraudFlags(sb) {
       return unwrap(await sb.from('fraud_flags').select('flag_id,order_id,flag_type,details,created_at,resolved')
         .order('flag_id', { ascending: false }).limit(30));
