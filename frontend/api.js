@@ -65,6 +65,8 @@
     },
     registerHousehold: (sb, areaId, categoryId, address, billNo) =>
       rpc(sb, 'register_household', { p_area_id: areaId, p_category_id: categoryId, p_address: address, p_utility_bill_no: billNo }),
+    registerDriver: (sb, licenseNo) =>
+      rpc(sb, 'register_driver', { p_license_no: licenseNo }),
     placeOrder: (sb, householdId, liters) => rpc(sb, 'place_order', { p_household: householdId, p_volume: liters }),
     cancelOrder: (sb, orderId) => rpc(sb, 'cancel_order', { p_order: orderId }),
     getOtp: (sb, orderId) => rpc(sb, 'get_my_otp', { p_order: orderId }),

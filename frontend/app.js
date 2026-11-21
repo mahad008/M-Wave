@@ -179,18 +179,27 @@
     const [ov, orders] = await Promise.all([A.householdOverview(sb, user.id), A.listOrders(sb)]);
     if (!ov) {
       const [areas, cats] = await Promise.all([A.getAreas(sb), A.getCategories(sb)]);
-      view.innerHTML = `<div class="panel loginbox" style="max-width:460px">
-        <h2>Complete household registration</h2>
-        <p class="muted">Submit your property details once. A Regulator will verify your water bill and activate your monthly quota.</p>
-        <label for="hh-area">Area</label>
-        <select id="hh-area" class="wide">${areas.map((a) => `<option value="${a.area_id}">${esc(a.name)}${a.zone ? ' (' + esc(a.zone) + ')' : ''}</option>`).join('')}</select>
-        <label for="hh-cat">Property Category</label>
-        <select id="hh-cat" class="wide">${cats.map((c) => `<option value="${c.category_id}">${esc(c.name)} — ${num(c.monthly_quota_liters)} L/month</option>`).join('')}</select>
-        <label for="hh-bill">Water / Utility Bill No.</label>
-        <input id="hh-bill" class="wide" type="text" placeholder="e.g. KWSB-904821">
-        <label for="hh-addr">Full Address</label>
-        <input id="hh-addr" class="wide" type="text" placeholder="House / Flat #, Block, Street">
-        <p style="margin-top:14px"><button data-act="register-hh">Submit for approval</button></p>
+      view.innerHTML = `<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:16px;margin-top:16px">
+        <div class="panel loginbox" style="margin:0;max-width:none">
+          <h2>Register as Household</h2>
+          <p class="muted">Submit your property details. A Regulator will verify your CNIC and water bill before activating bookings.</p>
+          <label for="hh-area">Area</label>
+          <select id="hh-area" class="wide">${areas.map((a) => `<option value="${a.area_id}">${esc(a.name)}${a.zone ? ' (' + esc(a.zone) + ')' : ''}</option>`).join('')}</select>
+          <label for="hh-cat">Property Category</label>
+          <select id="hh-cat" class="wide">${cats.map((c) => `<option value="${c.category_id}">${esc(c.name)} — ${num(c.monthly_quota_liters)} L/month</option>`).join('')}</select>
+          <label for="hh-bill">Water / Utility Bill No.</label>
+          <input id="hh-bill" class="wide" type="text" placeholder="e.g. KWSB-904821">
+          <label for="hh-addr">Full Address</label>
+          <input id="hh-addr" class="wide" type="text" placeholder="House / Flat #, Block, Street">
+          <p style="margin-top:14px"><button data-act="register-hh">Submit household</button></p>
+        </div>
+        <div class="panel loginbox" style="margin:0;max-width:none">
+          <h2>Apply as Driver</h2>
+          <p class="muted">Enter your driving license. A Regulator will verify your CNIC &amp; license, assign a tanker, and activate your account.</p>
+          <label for="drv-app-lic">Driving License No.</label>
+          <input id="drv-app-lic" class="wide" type="text" placeholder="e.g. KHI-9921">
+          <p style="margin-top:14px"><button data-act="register-drv">Submit driver application</button></p>
+        </div>
       </div>`;
       return;
     }
@@ -279,6 +288,13 @@
   // ---------- driver ----------
   async function viewDriver() {
     const [score, orders, pens] = await Promise.all([A.driverScore(sb), A.listOrders(sb), A.myPenalties(sb)]);
+    if (score && score.is_blocked && score.penalty_points === 0) {
+      view.innerHTML = `<div class="panel">
+        <h2>Pending regulator approval</h2>
+        <p>Your driver application is under review. You will receive orders once the Regulator verifies your CNIC &amp; license, assigns a tanker, and approves your account.</p>
+      </div>`;
+      return;
+    }
     const hh = await A.householdsByIds(sb, [...new Set(orders.map((o) => o.household_id))]);
     const addr = Object.fromEntries(hh.map((h) => [h.household_id, h.address]));
 
@@ -425,15 +441,20 @@
           <button data-act="onboard-driver">Promote to driver</button>
         </div></div>
 
-        <h2>Driver scores &amp; management</h2>
-        ${table(['Driver', 'Avg. rating', 'Penalty points', 'Status', 'Tanker', 'Action'],
+        <h2>Driver scores &amp; approvals</h2>
+        ${table(['Driver / CNIC', 'License', 'Avg. rating', 'Points', 'Status', 'Tanker', 'Action'],
           scores.map((r) => {
             const d = driverMap[r.driver_id] || {};
-            return `<tr><td>${esc(r.driver)}</td><td>${r.avg_rating == null ? '-' : r.avg_rating}</td><td>${r.penalty_points}</td>
-              <td>${r.is_blocked ? '<span class="bad">Blocked</span>' : '<span class="ok">Active</span>'}</td>
+            const p = profMap[d.user_id] || {};
+            const pending = r.is_blocked && r.penalty_points === 0;
+            return `<tr>
+              <td>${esc(r.driver)}<div class="muted" style="font-size:12px">${esc(p.cnic || 'No CNIC')}</div></td>
+              <td>${esc(d.license_no || '-')}</td>
+              <td>${r.avg_rating == null ? '-' : r.avg_rating}</td><td>${r.penalty_points}</td>
+              <td>${pending ? '<span class="bad">Pending</span>' : r.is_blocked ? '<span class="bad">Blocked</span>' : '<span class="ok">Active</span>'}</td>
               <td class="actions"><div class="row"><select data-tanker-for="${r.driver_id}">${tankerOpts(d.tanker_id)}</select>
                 <button class="small" data-act="assign-tanker" data-id="${r.driver_id}">Save</button></div></td>
-              <td class="actions">${r.is_blocked ? `<button class="small" data-act="unblock-driver" data-id="${r.driver_id}">Unblock</button>` : '<span class="muted">-</span>'}</td></tr>`;
+              <td class="actions">${r.is_blocked ? `<button class="small" data-act="unblock-driver" data-id="${r.driver_id}">${pending ? 'Approve' : 'Unblock'}</button>` : '<span class="muted">-</span>'}</td></tr>`;
           }))}
 
         <h2>Tanker fleet</h2>
@@ -653,8 +674,16 @@
         const catId = Number(document.getElementById('hh-cat').value);
         const bill = document.getElementById('hh-bill').value.trim();
         const addr = document.getElementById('hh-addr').value.trim();
-        if (!bill || !addr) { flash('Enter both Water Bill No. and full address.', 'err'); b.disabled = false; return; }
+        if (!bill || !addr) { flash('Enter both Water Bill No. and full address.', 'err'); return; }
         await run(() => A.registerHousehold(sb, areaId, catId, addr, bill), () => 'Household submitted for regulator approval.');
+        break;
+      }
+      case 'register-drv': {
+        const lic = document.getElementById('drv-app-lic').value.trim();
+        if (!lic) { flash('Enter your driving license number.', 'err'); return; }
+        await A.registerDriver(sb, lic);
+        flash('Driver application submitted for regulator approval.', 'ok');
+        await start(user);
         break;
       }
       case 'hh-status': {
