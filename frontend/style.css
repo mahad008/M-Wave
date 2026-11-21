@@ -1,0 +1,63 @@
+:root{
+  --bg:#f3f7fa; --card:#fff; --ink:#12263a; --muted:#5d7288; --line:#dbe5ee;
+  --brand:#0a6fb8; --brand-dark:#085591; --ok:#1d8a4e; --warn:#b7791f; --bad:#c0392b;
+}
+@media (prefers-color-scheme: dark){
+  :root{ --bg:#0e1a26; --card:#152433; --ink:#e6eef6; --muted:#93a8bc; --line:#25384a; --brand:#3ea0e6; --brand-dark:#6cb8ee; }
+}
+*{box-sizing:border-box}
+body{margin:0;font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+.top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;padding:12px 20px;background:linear-gradient(90deg,#08558f,#0a8fc9);color:#fff}
+.brand{display:flex;align-items:center;gap:10px}
+.brand strong{font-size:20px;letter-spacing:.5px;display:block}
+.brand small{display:block;opacity:.85;font-size:12px}
+#who{display:flex;align-items:center;gap:10px;font-size:14px}
+main{max-width:1100px;margin:0 auto;padding:18px 16px 60px}
+h2{margin:26px 0 10px;font-size:17px}
+h2:first-child{margin-top:4px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px}
+.card .label{color:var(--muted);font-size:12px;text-transform:uppercase;letter-spacing:.5px}
+.card .value{font-size:22px;font-weight:650;margin-top:2px}
+.card .sub{color:var(--muted);font-size:13px;margin-top:2px}
+.bar{height:10px;border-radius:6px;background:var(--line);overflow:hidden;margin-top:8px}
+.bar>span{display:block;height:100%;background:var(--brand)}
+.bar.hot>span{background:var(--bad)}
+.panel{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 16px;margin-top:12px}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+input,select{font:inherit;padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);min-width:0}
+input[type=number]{width:130px}
+input.wide{width:100%;max-width:340px}
+button{font:inherit;cursor:pointer;border:0;border-radius:8px;padding:8px 14px;background:var(--brand);color:#fff;font-weight:600}
+button:hover{background:var(--brand-dark)}
+button.ghost{background:transparent;color:var(--brand);border:1px solid var(--line)}
+button.ghost:hover{background:var(--line)}
+button.danger{background:var(--bad)}
+button.small{padding:5px 10px;font-size:13px}
+button:disabled{opacity:.55;cursor:wait}
+.tablewrap{overflow-x:auto;background:var(--card);border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th,td{padding:9px 12px;text-align:left;border-bottom:1px solid var(--line);vertical-align:middle;font-size:14px}
+th{font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);background:rgba(127,150,170,.08)}
+tr:last-child td{border-bottom:0}
+td.actions{white-space:nowrap}
+td.actions .row{flex-wrap:nowrap}
+.badge{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:650;background:var(--line);color:var(--ink)}
+.s-WAITING{background:#fdecc8;color:#7a4b00}.s-BOOKED{background:#d9ebfa;color:#074a80}
+.s-FILLED{background:#d6f0f5;color:#0b5565}.s-DISPATCHED{background:#e3ddfa;color:#41318a}
+.s-DELIVERED{background:#d9f2e3;color:#14633a}.s-VERIFIED{background:#b9ead0;color:#0d4a2a}
+.s-CANCELLED{background:#e4e7ea;color:#555}
+.role{background:rgba(255,255,255,.22);color:#fff;border-radius:999px;padding:2px 10px;font-size:12px;text-transform:capitalize}
+#flash .msg{margin:0 0 12px;padding:10px 14px;border-radius:8px;font-weight:500}
+#flash .ok{background:#d9f2e3;color:#14633a}
+#flash .err{background:#fbdcd8;color:#86261b}
+.otpbox{border:2px dashed var(--brand);border-radius:12px;padding:14px 18px;margin-top:12px;background:var(--card)}
+.otpcode{font-size:38px;font-weight:700;letter-spacing:10px;color:var(--brand);font-variant-numeric:tabular-nums}
+.muted{color:var(--muted)}
+.bad{color:var(--bad);font-weight:600}
+.ok{color:var(--ok);font-weight:600}
+.loginbox{max-width:380px;margin:40px auto}
+.loginbox label{display:block;margin:10px 0 4px;font-size:13px;color:var(--muted)}
+.timeline{margin:0;padding-left:18px}
+.timeline li{margin:3px 0}
+@media (max-width:600px){ .card .value{font-size:19px} .otpcode{font-size:30px;letter-spacing:6px} }

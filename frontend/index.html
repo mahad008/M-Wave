@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>M-WAVE | Water Tanker Rationing &amp; Verification</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <svg viewBox="0 0 24 24" width="26" height="26" aria-hidden="true"><path fill="currentColor" d="M12 2C12 2 5 10 5 15a7 7 0 0 0 14 0c0-5-7-13-7-13z"/></svg>
+      <div><strong>M-WAVE</strong><small>Water Tanker Rationing, Allocation &amp; Verification</small></div>
+    </div>
+    <div id="who"></div>
+  </header>
+  <main>
+    <div id="flash" role="status" aria-live="polite"></div>
+    <div id="view"><p class="muted">Loading...</p></div>
+  </main>
+
+  <!-- supabase-js, pinned version -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="config.js"></script>
+  <script src="api.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
